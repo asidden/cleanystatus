@@ -1,0 +1,49 @@
+#!/usr/bin/env ruby
+
+require 'optparse'
+require_relative '../lib/cleanystatus/version.rb'
+require_relative '../lib/cleanystatus/utils.rb'
+require 'fastimage'
+require 'shellwords'
+
+options = Hash.new
+
+opt_parser = OptionParser.new do |opts|
+  opts.banner = "Usage: csb -h"
+  opts.version = CleanyStatus::VERSION
+  
+  # opts.on('-h', '--height==HEIGHT', 'Specify height of the status bar in pixels (20, 40 or 60)') { |v| options[:height] = v }
+  
+  # opts.on('-o', '--output==OUTPUT', 'File name for the output image with status bar') { |v| options[:output] = v }
+  opts.on('-s', '--status-bar==STATUS_BAR_IMAGE', 'File path to status bar image, that will be applied to input screenshot(s)') { |v| options[:status_bar] = v }
+  opts.on('-i', '--input==INPUT_IMAGE', 'File path to input screenshot to apply a new status bar to') { |v| options[:input] = v }
+  opts.on('-o', '--output==OUTPUT_IMAGE_NAME', 'File path to output image with applied status bar') { |v| options[:output] = v }
+  opts.on('-?', '--help', 'Help') do
+    puts opt_parser
+    exit
+  end
+end
+
+opt_parser.parse!
+
+abort("no arguments specified; use -? or --help arguments to see help") if options.empty?
+
+abort("failed to open the input file: #{options[:input]}") if !File.exist?(options[:input])
+abort("no status bar image specified, use -s option") if blank?(options[:status_bar])
+abort("failed to open the status bar image file: #{options[:status_bar]}") if !File.exist?(options[:status_bar])
+abort("no output specfied, use -o option") if blank?(options[:output])
+abort("output file alread exists: #{options[:output]}") if File.exist?(options[:output])
+
+input_image_width, input_image_height = FastImage.size(options[:input])
+bar_width, bar_height = FastImage.size(options[:status_bar])
+
+abort("input image height is less than status bar image height; aborting") if input_image_height < bar_height
+abort("input image width does not match status bar image width; aborting") if input_image_width != bar_width
+
+puts "applying status bar #{options[:status_bar]} of height #{bar_height} to #{options[:input]} with dimensions W:#{input_image_width}, H:#{input_image_height}"
+puts "saving to #{options[:output]}..."
+
+system "convert #{options[:input].shellescape} #{options[:status_bar].shellescape} -geometry +0+0 -composite #{options[:output]}"
+
+puts "done"
+

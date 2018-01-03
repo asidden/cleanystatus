@@ -1,0 +1,49 @@
+#!/usr/bin/env ruby
+
+require 'optparse'
+require_relative '../lib/cleanystatus/version.rb'
+require_relative '../lib/cleanystatus/utils.rb'
+require 'fastimage'
+require 'shellwords'
+
+
+abort('can\'t find convert. Please, install ImageMagic and make sure PATH is correctly setup') unless which('convert')
+
+options = Hash.new
+
+opt_parser = OptionParser.new do |opts|
+  opts.banner = "Usage: get_status_bar -h HEIGHT_IN_PIXELS -i PATH_TO_SCREENSHOT -o OUTPUT_FILE_NAME"
+  opts.version = CleanyStatus::VERSION
+  
+  opts.on('-h', '--height==HEIGHT', 'Specify height of the status bar in pixels (20, 40 or 60)') { |v| options[:height] = v }
+  opts.on('-i', '--input==INPUT', 'File path to input screenshot to extract status bar from') { |v| options[:input] = v }
+  opts.on('-o', '--output==OUTPUT', 'File name for the output image with status bar') { |v| options[:output] = v }
+  opts.on('-?', '--help', 'Help') do
+    puts opt_parser
+    exit
+  end
+end
+
+opt_parser.parse!
+
+abort("no arguments specified; use -? or --help arguments to see help") if options.empty?
+
+# verify input params
+abort("no input file name is specified") if blank?(options[:input])
+abort("no status bar height is specified or provided height value is invalid") if blank?(options[:height])
+abort("status bar height value is invalid") if options[:height].to_i <= 0
+abort("no output file name is specified") if blank?(options[:output])
+
+abort("input file does not exist") if !File.exist?(options[:input])
+abort("output file already exists") if File.exist?(options[:output])
+
+
+src_width, src_height = FastImage.size(options[:input])
+abort("source image height is less than specified height #{options[:height]}") if src_height < options[:height].to_i
+
+puts "Cropping a status bar of height #{options[:height]} from #{options[:input]} to #{options[:output]}"
+
+system "convert #{options[:input].shellescape} -crop #{src_width}x#{options[:height]}+0+0 #{options[:output]}"
+
+
+
